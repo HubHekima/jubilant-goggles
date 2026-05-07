@@ -18,6 +18,9 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    optimizeDeps: {
+        include: ['html5-qrcode']
+    }, 
     server: {
         cors: true,
         watch: {

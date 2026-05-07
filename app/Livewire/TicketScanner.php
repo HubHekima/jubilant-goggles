@@ -33,7 +33,10 @@ class TicketScanner extends Component
     $this->message = "✅ VALID: " . $ticket->buyer_name;
     $this->status = "success";
 }
-
+    public function setStatus($status, $message) {
+       $this->status = $status;
+       $this->message = $message;
+   }
     public function render()
     {
         return view('livewire.ticket-scanner');
