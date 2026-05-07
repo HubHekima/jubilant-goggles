@@ -4,56 +4,93 @@
         {{ $message }}
     </div>
 
+    <!-- Scanner and Camera Preview container -->
     <div wire:ignore>
+        <!-- Camera Preview (WebRTC) -->
+        <div class="mb-4">
+            <video id="video-preview" autoplay playsinline class="w-full rounded border border-gray-300" style="max-height: 240px;"></video>
+            <button id="start-camera-btn" type="button" class="mt-2 w-full bg-gray-600 text-white font-bold py-2 px-4 rounded">
+                Show Camera Preview
+            </button>
+        </div>
+
+        <!-- QR Scanner -->
         <div id="reader" class="bg-white rounded-lg border-2 border-gray-200 overflow-hidden" style="min-height: 300px;"></div>
-        
         <button id="start-btn" type="button" class="mt-4 w-full bg-blue-600 text-white font-bold py-3 px-4 rounded">
-            Allow Camera & Start Scan
+            Tap to Start Scanner
         </button>
     </div>
 
-    <!-- Include the library via CDN if not in your bundle -->
-    <script src="https://unpkg.com" type="text/javascript"></script>
+    @push('scripts')
+    <script type="module">
+        import { Html5Qrcode } from "html5-qrcode";
 
-    <script>
-        document.addEventListener('livewire:initialized', () => {
-            let html5QrCode;
+        // WebRTC Camera Preview
+        let cameraStream = null;
+        document.getElementById('start-camera-btn').addEventListener('click', async () => {
+            const video = document.getElementById('video-preview');
+            if (cameraStream) {
+                // Stop preview
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+                video.srcObject = null;
+                event.target.innerText = 'Show Camera Preview';
+                return;
+            }
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = cameraStream;
+                event.target.innerText = 'Stop Camera Preview';
+            } catch (err) {
+                console.error('Camera access error:', err);
+                @this.call('setStatus', 'error', 'Camera access denied. Check browser permissions.');
+            }
+        });
+
+        // QR Scanner
+        let html5QrCode;
+        let isScanning = false;
+        document.getElementById('start-btn').addEventListener('click', async () => {
             const startBtn = document.getElementById('start-btn');
+            if (isScanning) {
+                await html5QrCode.stop();
+                startBtn.innerText = 'Tap to Start Scanner';
+                isScanning = false;
+                return;
+            }
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            try {
+                await html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    (decodedText) => {
+                        $wire.handleScan(decodedText);
+                        html5QrCode.pause(true);
+                        setTimeout(() => html5QrCode.resume(), 2500);
+                    },
+                    (errorMessage) => {
+                        // Parse error, ignore
+                    }
+                );
+                isScanning = true;
+                startBtn.innerText = 'Stop Scanner';
+            } catch (err) {
+                console.error(`Camera error: ${err}`);
+                @this.call('setStatus', 'error', 'Camera access denied. Check browser permissions.');
+            }
+        });
 
-            startBtn.addEventListener('click', async () => {
-                // Initialize if not already done
-                if (!html5QrCode) {
-                    html5QrCode = new Html5Qrcode("reader");
-                }
-
-                const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-                try {
-                    // This specific call triggers the browser's permission prompt
-                    await html5QrCode.start(
-                        { facingMode: "environment" }, 
-                        config,
-                        (decodedText) => {
-                            // Call Livewire handleScan
-                            @this.handleScan(decodedText);
-                            
-                            // Visual feedback: Pause briefly so user sees the result
-                            html5QrCode.pause(true);
-                            setTimeout(() => html5QrCode.resume(), 3000);
-                        }
-                    );
-
-                    startBtn.style.display = 'none'; // Hide button once camera is active
-                } catch (err) {
-                    console.error("Camera access failed", err);
-                    @this.setStatus('error', 'Camera access denied or not found.');
-                }
-            });
-
-            // Cleanup when component is destroyed
-            @this.on('stop-scanner', () => {
-                if(html5QrCode) html5QrCode.stop();
-            });
+        // Stop camera and scanner when Livewire navigates away
+        document.addEventListener('livewire:navigating', () => {
+            if (html5QrCode && isScanning) {
+                html5QrCode.stop();
+            }
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+                document.getElementById('video-preview').srcObject = null;
+            }
         });
     </script>
-</div>
+    @endpush
