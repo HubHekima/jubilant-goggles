@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ]);
      $middleware->validateCsrfTokens(except: [
         'api/mpesa/callback', 
+        'livewire/update',
     ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

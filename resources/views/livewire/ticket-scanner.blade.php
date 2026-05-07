@@ -73,12 +73,12 @@
                 await html5QrCode.start(
                     { facingMode: "environment" }, // back camera
                     config,
-                    (decodedText) => {
-                        // Success
-                        @this.call('handleScan', decodedText);
-                        html5QrCode.pause(true);
-                        setTimeout(() => html5QrCode.resume(), 2500);
-                    },
+                   (decodedText) => {
+                    $wire.handleScan(decodedText); // Standard Livewire 3 way
+                    html5QrCode.pause(true);
+                    setTimeout(() => html5QrCode.resume(), 2500);
+                },
+
                     (errorMessage) => {
                         // Parse error, ignore
                     }
