@@ -1,0 +1,16 @@
+[90m= [39m[34;4mApp\Models\Ticket[39;24m {#8710
+    [34mid[39m: [35m23[39m,
+    [34muuid[39m: [32m"[39m[32m10caa80e-7748-4b12-863a-5c2f7bdc03ee[39m[32m"[39m,
+    [34mevent_id[39m: [35m1[39m,
+    [34mticket_type_id[39m: [35m1[39m,
+    [34mbuyer_name[39m: [32m"[39m[32mEdgar Muga[39m[32m"[39m,
+    [34mbuyer_email[39m: [32m"[39m[32medgarmuga46@gmail.com[39m[32m"[39m,
+    [34mbuyer_phone[39m: [32m"[39m[32m254794213071[39m[32m"[39m,
+    [34mamount_paid[39m: [35m1[39m,
+    [34mstatus[39m: [32m"[39m[32mpaid[39m[32m"[39m,
+    [34mmpesa_reference[39m: [32m"[39m[32mUE67J34MO2[39m[32m"[39m,
+    [34mscanned_at[39m: [36mnull[39m,
+    [34mcreated_at[39m: [32m"[39m[32m2026-05-05 22:16:41[39m[32m"[39m,
+    [34mupdated_at[39m: [32m"[39m[32m2026-05-05 22:16:59[39m[32m"[39m,
+    [34mcheckout_request_id[39m: [32m"[39m[32mws_CO_06052026011645174794213071[39m[32m"[39m,
+  }
