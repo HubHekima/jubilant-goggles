@@ -1,84 +1,131 @@
-<div class="p-4">
+<div class="p-4" x-data="scannerHandler()" x-init="init()">
     <!-- Status Display -->
-    <div class="mb-4 p-4 rounded shadow-lg text-center font-bold text-white {{ $status == 'success' ? 'bg-green-600' : ($status == 'error' ? 'bg-red-600' : 'bg-blue-600') }}">
-        {{ $message }}
+    <div class="mb-4 p-4 rounded shadow-lg text-center font-bold text-white" 
+         :class="{
+             'bg-green-600': status === 'success',
+             'bg-red-600': status === 'error',
+             'bg-blue-600': status === 'idle'
+         }">
+        <span x-text="message">Waiting for scan...</span>
     </div>
 
     <!-- Scanner container -->
     <div wire:ignore>
         <div id="reader" class="bg-white rounded-lg border-2 border-gray-200 overflow-hidden" style="min-height: 300px;"></div>
         
-        <button id="start-btn" type="button" class="mt-4 w-full bg-blue-600 text-white font-bold py-3 px-4 rounded">
+        <button @click="toggleScanner" type="button" 
+                class="mt-4 w-full bg-blue-600 text-white font-bold py-3 px-4 rounded"
+                x-text="isScanning ? 'Stop Scanner' : 'Tap to Start Scanner'">
             Tap to Start Scanner
         </button>
     </div>
-
-    @push('scripts')
-    <!-- Load html5-qrcode from CDN -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <script>
-        // Now Html5Qrcode is available globally (no import needed)
-        let html5QrCode;
-        let isScanning = false;
-
-        document.getElementById('start-btn').addEventListener('click', async () => {
-            const startBtn = document.getElementById('start-btn');
-            
-            if (isScanning) {
-                try {
-                    await html5QrCode.stop();
-                    html5QrCode.clear();
-                } catch (e) {
-                    console.error('Error stopping scanner:', e);
-                }
-                startBtn.innerText = 'Tap to Start Scanner';
-                isScanning = false;
-                return;
-            }
-
-            html5QrCode = new Html5Qrcode("reader");
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-            try {
-                await html5QrCode.start(
-                    { facingMode: "environment" }, // back camera
-                    config,
-                    (decodedText) => {
-                        // Success
-                        @this.call('handleScan', decodedText);
-                        html5QrCode.pause(true);
-                        setTimeout(() => {
-                            if (isScanning) {
-                                html5QrCode.resume();
-                            }
-                        }, 2500);
-                    },
-                    (errorMessage) => {
-                        // Parse error, ignore (this fires continuously when no QR code is found)
-                    }
-                );
-                isScanning = true;
-                startBtn.innerText = 'Stop Scanner';
-            } catch (err) {
-                console.error(`Camera error:`, err);
-                isScanning = false;
-                @this.call('setStatus', 'error', 'Camera access denied. Please check browser permissions and ensure you\'re using HTTPS.');
-            }
-        });
-
-        // Stop camera when Livewire navigates away
-        document.addEventListener('livewire:navigating', () => {
-            if (html5QrCode && isScanning) {
-                html5QrCode.stop().catch(e => console.error('Error stopping on navigation:', e));
-            }
-        });
-
-        // Also handle page unload
-        window.addEventListener('beforeunload', () => {
-            if (html5QrCode && isScanning) {
-                html5QrCode.stop().catch(e => console.error('Error stopping on unload:', e));
-            }
-        });
-    </script>
-    @endpush
 </div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+<script>
+    function scannerHandler() {
+        return {
+            status: 'idle',
+            message: 'Waiting for scan...',
+            isScanning: false,
+            html5QrCode: null,
+
+            async init() {
+                console.log('Scanner initialized');
+                // Clean up when leaving
+                window.addEventListener('beforeunload', () => {
+                    if (this.isScanning && this.html5QrCode) {
+                        this.html5QrCode.stop();
+                    }
+                });
+            },
+
+            async toggleScanner() {
+                if (this.isScanning) {
+                    await this.stopScanner();
+                } else {
+                    await this.startScanner();
+                }
+            },
+
+            async startScanner() {
+                try {
+                    // Check camera support first
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: "environment" } 
+                    });
+                    // Stop the test stream immediately
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    this.html5QrCode = new Html5Qrcode("reader");
+                    const config = { 
+                        fps: 10, 
+                        qrbox: { width: 250, height: 250 } 
+                    };
+
+                    await this.html5QrCode.start(
+                        { facingMode: "environment" },
+                        config,
+                        (decodedText) => {
+                            // Success callback
+                            console.log('Scanned:', decodedText);
+                            this.updateStatus('success', 'Code scanned successfully!');
+                            @this.call('handleScan', decodedText);
+                            
+                            // Pause briefly to avoid multiple scans
+                            this.html5QrCode.pause(true);
+                            setTimeout(() => {
+                                if (this.isScanning && this.html5QrCode) {
+                                    this.html5QrCode.resume();
+                                }
+                            }, 2500);
+                        },
+                        (errorMessage) => {
+                            // Normal - fires when no QR code in view
+                        }
+                    );
+                    
+                    this.isScanning = true;
+                    this.updateStatus('success', 'Camera started. Point at a QR code.');
+                    console.log('Camera started successfully');
+                    
+                } catch (err) {
+                    console.error('Camera error:', err);
+                    this.isScanning = false;
+                    
+                    let errorMsg = 'Camera access denied. ';
+                    if (err.name === 'NotAllowedError') {
+                        errorMsg = 'Please allow camera access in your browser settings.';
+                    } else if (err.name === 'NotFoundError') {
+                        errorMsg = 'No camera found on this device.';
+                    } else if (err.message) {
+                        errorMsg += err.message;
+                    }
+                    
+                    this.updateStatus('error', errorMsg);
+                }
+            },
+
+            async stopScanner() {
+                if (this.html5QrCode && this.isScanning) {
+                    try {
+                        await this.html5QrCode.stop();
+                        this.html5QrCode.clear();
+                        console.log('Scanner stopped');
+                    } catch (e) {
+                        console.error('Error stopping scanner:', e);
+                    }
+                }
+                this.isScanning = false;
+                this.updateStatus('idle', 'Waiting for scan...');
+            },
+
+            updateStatus(status, message) {
+                this.status = status;
+                this.message = message;
+                // Also update Livewire if needed
+                @this.call('setStatus', status, message);
+            }
+        }
+    }
+</script>
