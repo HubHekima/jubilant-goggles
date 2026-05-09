@@ -5,6 +5,7 @@ use App\Livewire\PurchaseTicket;
 use App\Livewire\Admin\Events\CreateEvent;
 use App\Livewire\TicketScanner;
 
+
 Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
