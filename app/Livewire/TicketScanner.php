@@ -8,48 +8,53 @@ use App\Models\Ticket;
 class TicketScanner extends Component
 {
     public $message = "Waiting for scan...";
-    public $status = "idle"; // idle, success, error
+    public $status = "idle";
     
     public function handleScan($uuid)
     {
-        // Find ticket by UUID
         $ticket = Ticket::where('uuid', $uuid)->first();
 
-        // Check 1: Ticket exists?
         if (!$ticket) {
             $this->status = "error";
-            $this->message = "❌ INVALID TICKET - Not found in system";
+            $this->message = "❌ TICKET NOT FOUND";
             return;
         }
 
-        // Check 2: Ticket cancelled?
         if ($ticket->status === 'cancelled') {
             $this->status = "error";
             $this->message = "❌ CANCELLED TICKET";
             return;
         }
 
-        // Check 3: Payment pending?
         if ($ticket->status === 'pending') {
             $this->status = "error";
-            $this->message = "⚠️ PAYMENT PENDING - Cannot enter";
+            $this->message = "⚠️ PAYMENT PENDING";
             return;
         }
 
-        // Check 4: Already scanned?
-        if ($ticket->scanned_at !== null) {
+        // Check if already scanned - handle both string and Carbon dates
+        if (!is_null($ticket->scanned_at)) {
+            // Convert to readable time regardless of format
+            $time = '';
+            if ($ticket->scanned_at instanceof \Carbon\Carbon) {
+                $time = $ticket->scanned_at->format('H:i');
+            } else {
+                // It's a string, just use it directly or format it
+                $timestamp = strtotime($ticket->scanned_at);
+                $time = $timestamp ? date('H:i', $timestamp) : $ticket->scanned_at;
+            }
+            
             $this->status = "error";
-            $this->message = "⚠️ ALREADY SCANNED at " . $ticket->scanned_at->format('H:i');
+            $this->message = "⚠️ ALREADY SCANNED at " . $time;
             return;
         }
 
-        // ✅ VALID TICKET - Mark as scanned
-        $ticket->update([
-            'scanned_at' => now()
-        ]);
+        // Valid ticket - mark as scanned
+        $ticket->scanned_at = now();
+        $ticket->save();
         
         $this->status = "success";
-        $this->message = "✅ VALID ENTRY - " . $ticket->buyer_name;
+        $this->message = "✅ VALID ENTRY: " . $ticket->buyer_name;
     }
     
     public function setStatus($status, $message)

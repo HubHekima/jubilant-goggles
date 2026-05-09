@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Ticket extends Model
 {
      protected $guarded = [];
+
+      protected $casts = [
+        'scanned_at' => 'datetime',
+    ];
     //
       protected static function booted()
     {
