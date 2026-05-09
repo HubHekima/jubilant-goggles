@@ -8,49 +8,48 @@ use App\Models\Ticket;
 class TicketScanner extends Component
 {
     public $message = "Waiting for scan...";
-    public $status = "idle";
-    public $lastScannedTicket = null;
+    public $status = "idle"; // idle, success, error
     
     public function handleScan($uuid)
     {
-        // Find ticket
+        // Find ticket by UUID
         $ticket = Ticket::where('uuid', $uuid)->first();
 
+        // Check 1: Ticket exists?
         if (!$ticket) {
             $this->status = "error";
-            $this->message = "❌ TICKET NOT FOUND";
+            $this->message = "❌ INVALID TICKET - Not found in system";
             return;
         }
 
-        // Check if cancelled
+        // Check 2: Ticket cancelled?
         if ($ticket->status === 'cancelled') {
             $this->status = "error";
             $this->message = "❌ CANCELLED TICKET";
             return;
         }
 
-        // Check if pending payment
+        // Check 3: Payment pending?
         if ($ticket->status === 'pending') {
             $this->status = "error";
-            $this->message = "⚠️ PAYMENT PENDING";
+            $this->message = "⚠️ PAYMENT PENDING - Cannot enter";
             return;
         }
 
-        // Check if already scanned today
-        if ($ticket->scanned_at && $ticket->scanned_at->isToday()) {
+        // Check 4: Already scanned?
+        if ($ticket->scanned_at !== null) {
             $this->status = "error";
-            $this->message = "⚠️ ALREADY USED at " . $ticket->scanned_at->format('H:i');
+            $this->message = "⚠️ ALREADY SCANNED at " . $ticket->scanned_at->format('H:i');
             return;
         }
 
-        // Valid ticket - mark as scanned
-        $ticket->update(['scanned_at' => now()]);
-        
-        // Store last scanned ticket info
-        $this->lastScannedTicket = $ticket->buyer_name;
+        // ✅ VALID TICKET - Mark as scanned
+        $ticket->update([
+            'scanned_at' => now()
+        ]);
         
         $this->status = "success";
-        $this->message = "✅ VALID: " . $ticket->buyer_name;
+        $this->message = "✅ VALID ENTRY - " . $ticket->buyer_name;
     }
     
     public function setStatus($status, $message)
