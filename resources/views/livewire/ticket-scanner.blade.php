@@ -15,13 +15,38 @@
         
         <button @click="toggleScanner" type="button" 
                 class="mt-4 w-full bg-blue-600 text-white font-bold py-3 px-4 rounded"
-                x-text="isScanning ? 'Stop Scanner' : 'Tap to Start Scanner'">
+                x-text="isScanning ? 'Stop Scanner' : 'Tap to Start Scanner'"
+                :disabled="libraryLoading">
             Tap to Start Scanner
         </button>
+        
+        <!-- Library loading indicator -->
+        <div x-show="libraryLoading" class="mt-2 text-center text-sm text-gray-500">
+            Loading scanner library...
+        </div>
     </div>
 </div>
 
-<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+<!-- Load html5-qrcode before Alpine initializes -->
+<script>
+    // Store library ready state globally
+    window.html5QrcodeReady = false;
+    
+    // Load the library immediately
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js';
+    script.onload = function() {
+        window.html5QrcodeReady = true;
+        console.log('Html5Qrcode library loaded');
+        // Dispatch event so Alpine knows
+        window.dispatchEvent(new Event('html5qrcode-loaded'));
+    };
+    script.onerror = function() {
+        console.error('Failed to load Html5Qrcode library');
+    };
+    document.head.appendChild(script);
+</script>
+
 <script>
     function scannerHandler() {
         return {
@@ -29,13 +54,32 @@
             message: 'Waiting for scan...',
             isScanning: false,
             html5QrCode: null,
+            libraryLoading: true,
 
             async init() {
-                console.log('Scanner initialized');
+                console.log('Alpine initialized');
+                
+                // Wait for library if not loaded yet
+                if (!window.html5QrcodeReady) {
+                    await new Promise(resolve => {
+                        window.addEventListener('html5qrcode-loaded', resolve, { once: true });
+                    });
+                }
+                
+                this.libraryLoading = false;
+                console.log('Scanner ready');
+                
                 // Clean up when leaving
                 window.addEventListener('beforeunload', () => {
                     if (this.isScanning && this.html5QrCode) {
-                        this.html5QrCode.stop();
+                        this.html5QrCode.stop().catch(() => {});
+                    }
+                });
+                
+                // Handle Livewire navigation
+                document.addEventListener('livewire:navigating', () => {
+                    if (this.isScanning && this.html5QrCode) {
+                        this.html5QrCode.stop().catch(() => {});
                     }
                 });
             },
@@ -49,30 +93,42 @@
             },
 
             async startScanner() {
+                // First test camera permission
                 try {
-                    // Check camera support first
                     const stream = await navigator.mediaDevices.getUserMedia({ 
                         video: { facingMode: "environment" } 
                     });
-                    // Stop the test stream immediately
                     stream.getTracks().forEach(track => track.stop());
+                } catch (err) {
+                    console.error('Camera permission error:', err);
                     
-                    this.html5QrCode = new Html5Qrcode("reader");
-                    const config = { 
-                        fps: 10, 
-                        qrbox: { width: 250, height: 250 } 
-                    };
+                    let errorMsg = 'Camera access denied. ';
+                    if (err.name === 'NotAllowedError') {
+                        errorMsg = 'Please allow camera access in your browser settings.';
+                    } else if (err.name === 'NotFoundError') {
+                        errorMsg = 'No camera found on this device.';
+                    }
+                    
+                    this.status = 'error';
+                    this.message = errorMsg;
+                    @this.call('setStatus', 'error', errorMsg);
+                    return;
+                }
 
+                // Now start QR scanner
+                try {
+                    this.html5QrCode = new Html5Qrcode("reader");
+                    
                     await this.html5QrCode.start(
                         { facingMode: "environment" },
-                        config,
+                        { fps: 10, qrbox: { width: 250, height: 250 } },
                         (decodedText) => {
-                            // Success callback
                             console.log('Scanned:', decodedText);
-                            this.updateStatus('success', 'Code scanned successfully!');
+                            this.status = 'success';
+                            this.message = 'Scan successful!';
                             @this.call('handleScan', decodedText);
                             
-                            // Pause briefly to avoid multiple scans
+                            // Pause to prevent multiple scans
                             this.html5QrCode.pause(true);
                             setTimeout(() => {
                                 if (this.isScanning && this.html5QrCode) {
@@ -80,29 +136,21 @@
                                 }
                             }, 2500);
                         },
-                        (errorMessage) => {
-                            // Normal - fires when no QR code in view
+                        () => {
+                            // Normal scanning noise - ignore
                         }
                     );
                     
                     this.isScanning = true;
-                    this.updateStatus('success', 'Camera started. Point at a QR code.');
-                    console.log('Camera started successfully');
+                    this.status = 'success';
+                    this.message = 'Camera started. Point at a QR code.';
                     
                 } catch (err) {
-                    console.error('Camera error:', err);
+                    console.error('Scanner start error:', err);
                     this.isScanning = false;
-                    
-                    let errorMsg = 'Camera access denied. ';
-                    if (err.name === 'NotAllowedError') {
-                        errorMsg = 'Please allow camera access in your browser settings.';
-                    } else if (err.name === 'NotFoundError') {
-                        errorMsg = 'No camera found on this device.';
-                    } else if (err.message) {
-                        errorMsg += err.message;
-                    }
-                    
-                    this.updateStatus('error', errorMsg);
+                    this.status = 'error';
+                    this.message = 'Failed to start camera: ' + err.message;
+                    @this.call('setStatus', 'error', this.message);
                 }
             },
 
@@ -111,20 +159,13 @@
                     try {
                         await this.html5QrCode.stop();
                         this.html5QrCode.clear();
-                        console.log('Scanner stopped');
                     } catch (e) {
                         console.error('Error stopping scanner:', e);
                     }
                 }
                 this.isScanning = false;
-                this.updateStatus('idle', 'Waiting for scan...');
-            },
-
-            updateStatus(status, message) {
-                this.status = status;
-                this.message = message;
-                // Also update Livewire if needed
-                @this.call('setStatus', status, message);
+                this.status = 'idle';
+                this.message = 'Waiting for scan...';
             }
         }
     }
