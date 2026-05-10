@@ -17,7 +17,7 @@ class PurchaseTicket extends Component
 {
      #[Layout('layouts.guest')] 
     #[Title('Buy Ticket')]
-    
+
     public bool $isProcessing = false;
       // 1. These "public" variables automatically link to your form inputs
     public Event $event;
@@ -168,6 +168,7 @@ public function checkPaymentStatus()
 
     public function render()
     {
-        return view('livewire.purchase-ticket');
+        return view('livewire.purchase-ticket')
+         ->layout('layouts.guest');;
     }
 }
