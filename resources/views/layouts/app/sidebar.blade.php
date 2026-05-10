@@ -16,13 +16,14 @@
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
                     @can('manage events')
-                    <flux:sidebar.item icon="home" wire:navigate>
-                        {{ __('New Event') }}
+                    <flux:sidebar.item icon="calendar-plus"
+                    :href="route('admin.events.create')" :current="request()->routeIs('admin.events.create')" wire:navigate>
+                        {{ __('Create Event') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('scan tickets')
-                    <flux:sidebar.item icon="home" wire:navigate>
-                        {{ __('Gate Scanner') }}
+                    <flux:sidebar.item icon="qr-code"  :href="route('scanner')" :current="request()->routeIs('scanner')" wire:navigate>
+                        {{ __('Scan Ticket') }}
                     </flux:sidebar.item>
                     @endcan
                 </flux:sidebar.group>
