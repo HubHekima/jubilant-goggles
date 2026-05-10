@@ -16,7 +16,7 @@
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
                     @can('manage events')
-                    <flux:sidebar.item icon="home"
+                    <flux:sidebar.item icon="plus-circle"
                     :href="route('admin.events.create')" :current="request()->routeIs('admin.events.create')" wire:navigate>
                         {{ __('Create Event') }}
                     </flux:sidebar.item>
