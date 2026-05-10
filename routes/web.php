@@ -20,8 +20,9 @@ Route::get('/event/{event:slug}', PurchaseTicket::class);
 
 Route::middleware(['auth', 'role:super-admin'])->prefix('admin')->group(function () {
     Route::get('/events/create', CreateEvent::class)->name('admin.events.create');
+    Route::get('/scanner', TicketScanner::class)->name('scanner');
 });
 
-Route::get('/scanner', TicketScanner::class)->name('scanner');
+
 
 require __DIR__.'/settings.php';
