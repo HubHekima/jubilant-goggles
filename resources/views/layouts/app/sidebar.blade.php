@@ -18,7 +18,8 @@
                     <flux:sidebar.item icon="qr-code" :href="route('admin.events.create')" :current="request()->routeIs('admin.events.create')" wire:navigate>
                         {{ __(' Create New Event') }}
                     </flux:sidebar.item>
-                    <flux:sidebar.item icon="calendar-plus":href="route('scanner')" :current="request()->routeIs('scanner')"  wire:navigate>
+                    <flux:sidebar.item icon="calendar-plus"
+                    :href="route('scanner')" :current="request()->routeIs('scanner')"  wire:navigate>
                         {{ __('Scan QR Code') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
