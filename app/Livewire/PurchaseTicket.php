@@ -15,7 +15,7 @@ use Endroid\QrCode\Writer\PngWriter;
 
 class PurchaseTicket extends Component
 {
-
+     #[Layout('layouts.guest')]
     public bool $isProcessing = false;
       // 1. These "public" variables automatically link to your form inputs
     public Event $event;
