@@ -11,9 +11,12 @@ Route::view('/', 'welcome')->name('home');
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
 });
-
+// admin ~ email: admin@bandname.com
+// admin ~ password: password
 
 Route::get('/event/{event:slug}', PurchaseTicket::class);
+//access created event to test purchase ticket prompt generation : https://jubilant-goggles.main-je398z.laravel.cloud/event/conference
+//daraja prompt == sandox
 
 // routes/web.php
 
